@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MS_NAILS — Админ</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .lightbox.active { display: flex; }
+    .lightbox img {
+      max-width: 100%;
+      max-height: 90vh;
+      border-radius: 16px;
+      object-fit: contain;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      font-size: 28px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .day-group {
+      margin-bottom: 28px;
+    }
+    .day-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #e9d5ff;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(192,132,252,0.25);
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="padding-bottom: 40px;">
+    <div id="admin-login-box" class="card" style="margin-top: 40px;">
+      <h2 class="chrome-text" style="text-align:center;margin-bottom:20px;">Кабинет мастера</h2>
+      <input type="text" id="admin-login" class="input" placeholder="Логин" value="admin" />
+      <input type="password" id="admin-pass" class="input" placeholder="Пароль" />
+      <button class="btn-main" id="btn-admin-login">Войти</button>
+    </div>
+
+    <div id="admin-content" class="hidden">
+      <div class="header-bar">
+        <div class="chrome-text title">Админ</div>
+        <button class="btn-sec small" onclick="logoutAdmin()">Выйти</button>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:10px;font-weight:700">Уведомления</h3>
+        <p class="hint">Telegram ID, куда присылать новые заявки (узнать у @userinfobot)</p>
+        <input type="text" id="notify-id" class="input" placeholder="123456789" />
+        <button class="btn-main" id="btn-save-notify">Сохранить</button>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:10px;font-weight:700">Добавить окошко</h3>
+        <input type="date" id="new-date" class="input" />
+        <input type="time" id="new-time" class="input" value="12:00" />
+        <button class="btn-main" id="btn-add-slot">+ Добавить</button>
+      </div>
+
+      <div id="admin-slots"></div>
+    </div>
+  </div>
+
+  <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">×</button>
+    <img id="lightbox-img" src="" alt="" />
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    let adminToken = localStorage.getItem('adminToken');
+
+    if (adminToken) {
+      document.getElementById('admin-login-box').classList.add('hidden');
+      document.getElementById('admin-content').classList.remove('hidden');
+      loadAdmin();
+    }
+
+    document.getElementById('btn-admin-login').onclick = async () => {
+      const login = document.getElementById('admin-login').value;
+      const password = document.getElementById('admin-pass').value;
+      try {
+        const res = await fetch(API + '/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login, password })
+        });
+        const data = await res.json();
+        if (!res.ok) return alert(data.error);
+        adminToken = data.token;
+        localStorage.setItem('adminToken', adminToken);
+        document.getElementById('admin-login-box').classList.add('hidden');
+        document.getElementById('admin-content').classList.remove('hidden');
+        loadAdmin();
+      } catch (e) { alert('Ошибка'); }
+    };
+
+    function logoutAdmin() {
+      adminToken = null;
+      localStorage.removeItem('adminToken');
+      document.getElementById('admin-content').classList.add('hidden');
+      document.getElementById('admin-login-box').classList.remove('hidden');
+    }
+
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox').classList.add('active');
+    }
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('active');
+    }
+
+    async function loadAdmin() {
+      try {
+        const res = await fetch(API + '/api/admin/settings', { headers: { 'X-Admin-Token': adminToken } });
+        const s = await res.json();
+        document.getElementById('notify-id').value = s.admin_tg_id || '';
+      } catch {}
+
+      const box = document.getElementById('admin-slots');
+      try {
+        const res = await fetch(API + '/api/admin/slots', { headers: { 'X-Admin-Token': adminToken } });
+        let slots = await res.json();
+
+        // убираем отменённые старше 5 минут
+        const now = Date.now();
+        slots = slots.filter(s => {
+          if (s.status !== 'cancelled') return true;
+          const updated = new Date(s.updated_at || s.created_at).getTime();
+          return (now - updated) < 5 * 60 * 1000;
+        });
+
+        // группировка по дням
+        const groups = {};
+        slots.forEach(s => {
+          if (!groups[s.date]) groups[s.date] = [];
+          groups[s.date].push(s);
+        });
+        const dates = Object.keys(groups).sort();
+
+        if (!dates.length) {
+          box.innerHTML = '<div class="empty">Нет слотов</div>';
+          return;
+        }
+
+        box.innerHTML = dates.map(date => {
+          const d = new Date(date + 'T00:00:00');
+          const days = ['вс','пн','вт','ср','чт','пт','сб'];
+          const title = `${days[d.getDay()]} ${date.slice(8)}.${date.slice(5,7)}.${date.slice(0,4)}`;
+          const items = groups[date].sort((a,b) => a.time.localeCompare(b.time)).map(s => {
+            const photosHtml = (s.photos && s.photos.length)
+              ? `<div class="admin-photos">${s.photos.map(p => `<img src="${p}" onclick="event.stopPropagation();openLightbox('${p}')" />`).join('')}</div>`
+              : '';
+            return `
+              <div class="admin-slot">
+                <div>
+                  <strong>${s.time}</strong>
+                  <span class="status status-${s.status}">${s.status}</span>
+                </div>
+                ${s.client_name ? `
+                  <div style="font-size:13px;margin-top:8px;color:#c4b5fd;line-height:1.5">
+                    👤 ${s.client_name}<br>
+                    📞 ${s.client_phone || '—'}<br>
+                    ${s.client_username ? '@' + s.client_username.replace('@','') + '<br>' : ''}
+                    ${s.service ? '💅 ' + s.service + '<br>' : ''}
+                    ${s.comment ? '💬 ' + s.comment : ''}
+                  </div>
+                  ${photosHtml}
+                ` : ''}
+                <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+                  ${s.status === 'pending' ? `
+                    <button class="btn-sec small" onclick="setStatus('${s.id}','booked')">Подтвердить</button>
+                    <button class="btn-sec small" onclick="setStatus('${s.id}','cancelled')">Отклонить</button>
+                  ` : ''}
+                  ${s.status === 'booked' ? `
+                    <button class="btn-sec small" onclick="setStatus('${s.id}','cancelled')">Отменить</button>
+                  ` : ''}
+                  ${s.status === 'cancelled' ? `
+                    <button class="btn-sec small" onclick="setStatus('${s.id}','booked')">Вернуть</button>
+                  ` : ''}
+                  ${s.status === 'available' ? `
+                    <button class="btn-sec small" onclick="delSlot('${s.id}')">Удалить</button>
+                  ` : ''}
+                  ${s.status !== 'available' ? `
+                    <button class="btn-sec small" onclick="editSlot('${s.id}')">Редактировать</button>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('');
+          return `<div class="day-group"><div class="day-title">${title}</div>${items}</div>`;
+        }).join('');
+      } catch {
+        box.innerHTML = 'Ошибка загрузки';
+      }
+    }
+
+    // авто-обновление каждые 30 сек (чтобы отменённые исчезали)
+    setInterval(() => { if (adminToken) loadAdmin(); }, 30000);
+
+    document.getElementById('btn-save-notify').onclick = async () => {
+      const id = document.getElementById('notify-id').value.trim();
+      await fetch(API + '/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+        body: JSON.stringify({ admin_tg_id: id })
+      });
+      alert('Сохранено');
+    };
+
+    document.getElementById('btn-add-slot').onclick = async () => {
+      const date = document.getElementById('new-date').value;
+      const time = document.getElementById('new-time').value;
+      if (!date || !time) return alert('Укажи дату и время');
+      await fetch(API + '/api/admin/slots', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+        body: JSON.stringify({ date, time })
+      });
+      loadAdmin();
+    };
+
+    async function setStatus(id, status) {
+      await fetch(API + '/api/admin/slots/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+        body: JSON.stringify({ status })
+      });
+      loadAdmin();
+    }
+
+    async function delSlot(id) {
+      if (!confirm('Удалить слот?')) return;
+      await fetch(API + '/api/admin/slots/' + id, {
+        method: 'DELETE',
+        headers: { 'X-Admin-Token': adminToken }
+      });
+      loadAdmin();
+    }
+
+    async function editSlot(id) {
+      const newTime = prompt('Новое время (ЧЧ:ММ):');
+      if (!newTime) return;
+      const newDate = prompt('Новая дата (ГГГГ-ММ-ДД):');
+      if (!newDate) return;
+      await fetch(API + '/api/admin/slots/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken },
+        body: JSON.stringify({ date: newDate, time: newTime })
+      });
+      loadAdmin();
+    }
+  </script>
+</body>
+</html>

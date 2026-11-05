@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MS_NAILS</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- HOME -->
+    <section id="page-home" class="page active">
+      <div class="hero">
+        <img src="logo.png" alt="MS NAILS" class="logo-img" />
+        <div class="tagline">маникюр · запись</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">ЗАПИСЬ КО МНЕ ♡</div>
+        <p class="card-desc">Выбери услугу и окошко, прикрепи картинку дизайна. Подтверди запись в Telegram.</p>
+        <button class="btn-main" onclick="startBooking()">Выбрать услугу и время</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-val">14</div>
+          <div class="stat-label">услуг в прайсе</div>
+        </div>
+        <div class="stat">
+          <div class="stat-val">от 300 ₽</div>
+          <div class="stat-label">предоплата</div>
+        </div>
+      </div>
+
+      <div class="bottom-nav">
+        <button class="nav-item active" data-page="home">Главная</button>
+        <button class="nav-item" data-page="price">Прайс</button>
+        <button class="nav-item" data-page="bookings">Мои записи</button>
+      </div>
+    </section>
+
+    <!-- PRICE -->
+    <section id="page-price" class="page">
+      <div class="header-bar">
+        <div class="chrome-text title">Прайс</div>
+        <div class="badge">Предоплата 300 ₽</div>
+      </div>
+
+      <div class="price-block">
+        <h3>Наращивание</h3>
+        <div class="price-row"><span>Длина 1–2</span><span>2 000 ₽</span></div>
+        <div class="price-row"><span>Длина 3–4</span><span>2 300 ₽</span></div>
+        <div class="price-row"><span>Длина 5–6</span><span>2 600 ₽</span></div>
+        <div class="price-row muted"><span>Каждая след. единица</span><span>+100 ₽</span></div>
+      </div>
+
+      <div class="price-block">
+        <h3>Покрытие</h3>
+        <div class="price-row"><span>Покрытие гелем</span><span>1 500 ₽</span></div>
+        <div class="price-row"><span>Моделирование</span><span>1 800 ₽</span></div>
+      </div>
+
+      <div class="price-block">
+        <h3>Дизайн</h3>
+        <div class="price-row"><span>Light</span><span>200 ₽</span></div>
+        <div class="price-row"><span>Medium</span><span>400 ₽</span></div>
+        <div class="price-row"><span>Hard</span><span>от 600 ₽</span></div>
+        <div class="price-row"><span>Френч</span><span>500 ₽</span></div>
+        <div class="price-row"><span>Втирка, кошачий глаз, битое стекло...</span><span>300 ₽</span></div>
+      </div>
+
+      <div class="price-block">
+        <h3>Дополнительно</h3>
+        <div class="price-row"><span>Снятие + комб. маникюр</span><span>1 200 ₽</span></div>
+        <div class="price-row"><span>Комбинированный маникюр</span><span>1 000 ₽</span></div>
+        <div class="price-row"><span>Снятие чужой работы</span><span>300 ₽</span></div>
+        <div class="price-row"><span>Снятие моей работы</span><span>300 ₽</span></div>
+      </div>
+
+      <div class="bottom-nav">
+        <button class="nav-item" data-page="home">Главная</button>
+        <button class="nav-item active" data-page="price">Прайс</button>
+        <button class="nav-item" data-page="bookings">Мои записи</button>
+      </div>
+    </section>
+
+    <!-- BOOKING FLOW -->
+    <section id="page-booking" class="page">
+      <div class="progress">
+        <div class="progress-bar" id="progress-bar"></div>
+        <div class="progress-text" id="progress-text">Шаг 1 из 5</div>
+      </div>
+
+      <div id="step-1" class="step">
+        <h2 class="chrome-text">Выбери услугу</h2>
+        <div id="services-list"></div>
+        <button class="btn-main" id="btn-next-1" disabled>Далее</button>
+      </div>
+
+      <div id="step-2" class="step hidden">
+        <h2 class="chrome-text">Твой дизайн</h2>
+        <p class="hint">Прикрепи хотя бы одну картинку (до 3), чтобы мастер заранее увидела идею.</p>
+        
+        <div class="upload-zone">
+          <input type="file" id="photo-input" accept="image/*" multiple hidden />
+          <div class="upload-btn" onclick="document.getElementById('photo-input').click()">Прикрепить картинки</div>
+          <div id="photos-preview" class="photos-preview"></div>
+        </div>
+
+        <textarea id="design-comment" class="input" rows="3" placeholder="Пожелания к дизайну: длина, форма, цвет..."></textarea>
+        <div class="btns">
+          <button class="btn-sec" onclick="goStep(1)">Назад</button>
+          <button class="btn-main" onclick="goStep(3)">Далее</button>
+        </div>
+      </div>
+
+      <div id="step-3" class="step hidden">
+        <h2 class="chrome-text">День и время</h2>
+        <div id="slots-container" class="slots-grid">Загрузка...</div>
+        <div class="btns">
+          <button class="btn-sec" onclick="goStep(2)">Назад</button>
+          <button class="btn-main" id="btn-next-3" disabled>Далее</button>
+        </div>
+      </div>
+
+      <div id="step-4" class="step hidden">
+        <h2 class="chrome-text">Контакты</h2>
+        <input type="text" id="client-name" class="input" placeholder="ФИО *" />
+        <input type="tel" id="client-phone" class="input" placeholder="Телефон *" />
+        <input type="text" id="client-username" class="input" placeholder="@username Telegram" />
+        <div class="btns">
+          <button class="btn-sec" onclick="goStep(3)">Назад</button>
+          <button class="btn-main" onclick="goStep(5)">Далее</button>
+        </div>
+      </div>
+
+      <div id="step-5" class="step hidden">
+        <h2 class="chrome-text">Проверка записи</h2>
+        <div class="summary" id="summary"></div>
+
+        <div class="pay-box">
+          <div class="pay-title">Предоплата 300 ₽</div>
+          <div class="pay-row">Сбербанк: <strong id="pay-phone">+79226466607</strong></div>
+          <div class="pay-row" id="pay-name">Варвара Сергеевна С</div>
+          <div class="important">⚠️ В комментарии к переводу обязательно укажи свой <strong>@username</strong></div>
+          <button class="btn-copy" onclick="copyRequisites()">Скопировать реквизиты</button>
+        </div>
+
+        <button class="btn-main" id="btn-submit">Отправить заявку</button>
+        <button class="btn-sec" onclick="goStep(4)">Назад</button>
+      </div>
+
+      <div id="step-success" class="step hidden">
+        <div class="success-icon">✨</div>
+        <h2 class="chrome-text">Заявка отправлена!</h2>
+        <p>Мастер проверит оплату и подтвердит запись.<br>Статус появится в «Мои записи».</p>
+        <button class="btn-main" onclick="showPage('home')">На главную</button>
+      </div>
+    </section>
+
+    <section id="page-bookings" class="page">
+      <div class="header-bar">
+        <div class="chrome-text title">Мои записи</div>
+      </div>
+      <div id="my-bookings-list">
+        <div class="empty">Загрузка...</div>
+      </div>
+      <div class="bottom-nav">
+        <button class="nav-item" data-page="home">Главная</button>
+        <button class="nav-item" data-page="price">Прайс</button>
+        <button class="nav-item active" data-page="bookings">Мои записи</button>
+      </div>
+    </section>
+
+    
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

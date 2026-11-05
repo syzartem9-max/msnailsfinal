@@ -1,0 +1,22 @@
+{
+  "name": "ms-nails-bot",
+  "version": "1.0.0",
+  "description": "Telegram Mini App для записи на маникюр MS_NAILS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "grammy": "^1.30.0",
+    "qrcode": "^1.5.4",
+    "uuid": "^10.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
